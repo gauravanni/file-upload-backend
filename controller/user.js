@@ -124,7 +124,7 @@ exports.listUsers=async(req,res)=>{
         else {
             return res.status(StatusCodes.NOT_FOUND).json({
                 status: false,
-                message: 'No Image Found',
+                message: 'No Record Found',
                 users
             });
         }
@@ -145,13 +145,13 @@ exports.deleteUser=async(req,res)=>{
         })
         if(user){
             const userId=user.id
-            const image=await Image.destroy({
+            const deleteImage=await Image.destroy({
                 where:{user_id:userId}
             })
-            const user=await User.destroy({
+            const deleteUser=await User.destroy({
                 where:{id:userId}
             })
-            if(image || user){
+            if(deleteImage || deleteUser){
                 return res.status(StatusCodes.OK).json({
                     status: true,
                     message:'Record deleted Successfully',
