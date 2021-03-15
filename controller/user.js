@@ -64,7 +64,7 @@ exports.login=async(req,res)=>{
         }
         const result=await pwdCompare(req.body.password, user.dataValues.password)
         if(result){
-            const accessToken = jwt.sign(user.dataValues,ACCESS_TOKEN_SECRET_KEY, { expiresIn: "1d" });
+            const accessToken = jwt.sign(user.dataValues,ACCESS_TOKEN_SECRET_KEY, { expiresIn: "30s" });
             const refreshToken = jwt.sign(user.dataValues,REFRESH_TOKEN_SECRET_KEY, { expiresIn: "7d" });
             refreshTokens.push(refreshToken);
             return res.status(StatusCodes.OK).json({
@@ -112,8 +112,12 @@ exports.getUser=async(req,res)=>{
 exports.fileUpload=async(req,res)=>{
     try {
         const fileExists=await Image.findOne({
-            where:{image_path:req.file.path}
+            where:{
+                image_path:req.file.path.replace(/\\/g, "/"),
+                user_id:req.userData.id
+            },
         })
+        console.log(fileExists)
         if(!fileExists){
             const image=await Image.create({
                 image_path:req.file.path.replace(/\\/g, "/"),
@@ -234,7 +238,7 @@ exports.genRefreshToken=async(req,res)=>{
     // If the refresh token is valid, create a new accessToken and return it.
     jwt.verify(refreshToken,REFRESH_TOKEN_SECRET_KEY, (err, user) => {
         if (!err) {
-            const accessToken = jwt.sign({ username: user.name }, ACCESS_TOKEN_SECRET_KEY, {expiresIn: "20s"});
+            const accessToken = jwt.sign({ name: user.name,id:user.id }, ACCESS_TOKEN_SECRET_KEY, {expiresIn: "30s"});
             return res.json({ success: true, accessToken });
         } else {
             return res.status(StatusCodes.UNAUTHORIZED).json({
