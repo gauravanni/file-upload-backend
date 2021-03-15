@@ -6,6 +6,10 @@ const  {
     getStatusCode,
 } =require('http-status-codes')
 const jwt=require('jsonwebtoken')
+const rimraf = require("rimraf");
+const fs = require('fs');
+
+
 let refreshTokens = [];
 
 const User = require('../models/').User;
@@ -17,11 +21,12 @@ const {ACCESS_TOKEN_SECRET_KEY,REFRESH_TOKEN_SECRET_KEY}=require('../config/jwtC
 exports.register=async(req,res)=>{
     try {
         const userExists=await User.findOne({
-            email:req.body.email
+            where:{email:req.body.email}
         })
         // not allow duplicate user
+        console.log(userExists)
         if(userExists){
-            return res.status(406).json({
+            return res.status(StatusCodes.OK).json({
                 status: false,
                 message: "Duplicate email not acceptable"
             });
@@ -52,7 +57,7 @@ exports.login=async(req,res)=>{
             }
         })
         if (user === null) {
-            return res.status(StatusCodes.UNAUTHORIZED).json({
+            return res.status(StatusCodes.OK).json({
                 status: false,
                 message: "Wrong email or password"
             });
@@ -70,7 +75,7 @@ exports.login=async(req,res)=>{
             });
         }
         else{
-            return res.status(StatusCodes.UNAUTHORIZED).json({
+            return res.status(StatusCodes.OK).json({
                 status: false,
                 message: "Wrong email or password"
             });
@@ -83,18 +88,50 @@ exports.login=async(req,res)=>{
     }
 }
 
-exports.fileUpload=async(req,res)=>{
+exports.getUser=async(req,res)=>{
     try {
-        const image=await Image.create({
-            image_path:req.file.path,
-            user_id:req.userData.id
+        const user=await User.findOne({
+            id:req.userData.id,
+            attributes:['id','name','email','phone']
         })
-        if(image){
-            return res.status(StatusCodes.CREATED).json({
+        if(user){
+            return res.status(StatusCodes.OK).json({
                 status: true,
-                message: "File Uploaded Successfully"
+                user,
+                message: "User fetch Successfully"
             });
         }
+    } catch (error) {
+        return res.status(502).json({
+            status: false,
+            Message: error.message
+        });
+    }
+}
+
+exports.fileUpload=async(req,res)=>{
+    try {
+        const fileExists=await Image.findOne({
+            where:{image_path:req.file.path}
+        })
+        if(!fileExists){
+            const image=await Image.create({
+                image_path:req.file.path.replace(/\\/g, "/"),
+                user_id:req.userData.id
+            })
+            if(image){
+                return res.status(StatusCodes.CREATED).json({
+                    status: true,
+                    message: "File Uploaded Successfully"
+                });
+            }
+        }
+    else {
+        return res.status(StatusCodes.OK).json({
+            status: false,
+            message: "Duplicate file not allowed"
+        });
+    }
     } catch (error) {
         return res.status(502).json({
             status: false,
@@ -122,7 +159,7 @@ exports.listUsers=async(req,res)=>{
             });
         }
         else {
-            return res.status(StatusCodes.NOT_FOUND).json({
+            return res.status(StatusCodes.OK).json({
                 status: false,
                 message: 'No Record Found',
                 users
@@ -144,7 +181,7 @@ exports.deleteUser=async(req,res)=>{
             attributes:['id','name']
         })
         if(user){
-            const userId=user.id
+            const userId=user.dataValues.id
             const deleteImage=await Image.destroy({
                 where:{user_id:userId}
             })
@@ -152,9 +189,15 @@ exports.deleteUser=async(req,res)=>{
                 where:{id:userId}
             })
             if(deleteImage || deleteUser){
-                return res.status(StatusCodes.OK).json({
-                    status: true,
-                    message:'Record deleted Successfully',
+                // remove user folder with image
+                fs.rmdir('./public/assets/user_'+req.userData.id, { recursive: true }, (err) => {
+                    if (err) {
+                        throw err;
+                    }
+                    return res.status(StatusCodes.OK).json({
+                        status: true,
+                        message:'Record deleted Successfully',
+                    });
                 });
             }
             else{
@@ -164,10 +207,12 @@ exports.deleteUser=async(req,res)=>{
                 });
             }
         }
+        else{
         return res.status(StatusCodes.NOT_FOUND).json({
             status: false,
             message:`No Record Found for this user`,
         });
+        }
         
     } catch (error) {
         return res.status(502).json({

@@ -1,7 +1,7 @@
 var express = require('express');
 var router = express.Router();
 
-const {register,login,genRefreshToken,fileUpload,listUsers,deleteUser}=require('../controller/user')
+const {register,login,genRefreshToken,fileUpload,listUsers,deleteUser,getUser}=require('../controller/user')
 const checkAuth=require('../middleware/auth')
 const uploadFile=require('../helper/fileUpload')
 
@@ -15,6 +15,8 @@ router.post('/login',login)
 router.post('/refreshtoken',genRefreshToken)
 router.post('/upload',checkAuth,uploadFile.upload.single('file'),fileUpload)
 router.get('/users',checkAuth,listUsers)
+router.get('/user',checkAuth,getUser)
+
 router.post('/delete/:id',deleteUser)
 
 
